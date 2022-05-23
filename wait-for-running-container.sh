@@ -12,18 +12,18 @@ fi
 RETURN_HEALTHY=0
 RETURN_STARTING=1
 RETURN_UNHEALTHY=2
-RETURN_UNKNOWN=3
+RETURN_RUNNING=3
 RETURN_ERROR=99
 
 function usage() {
     echo "
-    Usage: wait-for-healthy-container.sh <container name> [timeout]
+    Usage: wait-for-running-container.sh <container name> [timeout]
     "
     return
 }
 
 function get_health_state {
-    state=$(docker inspect -f '{{ .State.Health.Status }}' ${container_name})
+    state=$(docker inspect -f '{{ .State.Status }}' ${container_name})
     return_code=$?
     if [ ! ${return_code} -eq 0 ]; then
         exit ${RETURN_ERROR}
@@ -35,23 +35,26 @@ function get_health_state {
     elif [[ "${state}" == "starting" ]]; then
         return ${RETURN_STARTING}
     else
-        return ${RETURN_UNKNOWN}
+        return ${RETURN_RUNNING}
     fi
 }
 
 function wait_for() {
-    echo "Wait for container '$container_name' to be healthy for max $timeout seconds..."
+    echo "Wait for container '$container_name' to be running for max $timeout seconds..."
     for i in `seq ${timeout}`; do
         get_health_state
         state=$?
-        if [ ${state} -eq 0 ]; then
-            echo "Container is healthy after ${i} seconds."
+
+        echo $state
+
+        if [ ${state} -eq 3 ]; then
+            echo "Container is running after ${i} seconds."
             exit 0
         fi
         sleep 1
     done
 
-    echo "Timeout exceeded. Health status returned: $(docker inspect -f '{{ .State.Health.Status }}' ${container_name})"
+    echo "Timeout exceeded. Status returned: $(docker inspect -f '{{ .State.Status }}' ${container_name})"
     exit 1
 }
 
